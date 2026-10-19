@@ -1,0 +1,27 @@
+# deps
+node_modules/
+
+# build
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# env
+.env
+.env.*
+!.env.example
+
+# uploads locais (bônus)
+backend/uploads/
+
+# logs
+*.log
+npm-debug.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
