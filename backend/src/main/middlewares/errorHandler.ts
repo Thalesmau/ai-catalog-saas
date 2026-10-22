@@ -6,7 +6,7 @@ import { ErrorCode } from '@application/errors/ErrorCode';
 import { HttpError } from '@application/errors/http/HttpError';
 import { errorResponse } from '@main/utils/errorResponse';
 
-export const errorHandler: ErrorRequestHandler = (error, req, res) => {
+export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
   if (error instanceof ZodError) {
     return errorResponse(res, {
       statusCode: 400,
