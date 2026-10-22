@@ -6,6 +6,7 @@ export class AppConfig {
   readonly app: AppConfig.App;
   readonly http: AppConfig.Http;
   readonly db: AppConfig.Database;
+  readonly auth: AppConfig.Auth;
 
   constructor() {
     this.app = {
@@ -21,6 +22,11 @@ export class AppConfig {
     this.db = {
       uri: env.MONGODB_URI,
       name: env.MONGODB_DB,
+    };
+
+    this.auth = {
+      jwtSecret: env.JWT_SECRET,
+      jwtExpiresIn: env.JWT_EXPIRES_IN as AppConfig.Auth['jwtExpiresIn'],
     };
   }
 }
@@ -39,5 +45,10 @@ export namespace AppConfig {
   export type Database = {
     uri: string;
     name: string;
+  };
+
+  export type Auth = {
+    jwtSecret: string;
+    jwtExpiresIn: `${number}${'s' | 'm' | 'h' | 'd'}`;
   };
 }
