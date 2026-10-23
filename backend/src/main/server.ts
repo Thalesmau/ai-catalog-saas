@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 
 import { MongoDbClient } from '@infra/clients/MongoDbClient';
+import { ensureIndexes } from '@infra/database/indexes';
 import { Registry } from '@kernel/di/Registry';
 import { createApp } from '@main/app';
 import { logger } from '@main/config/logger';
@@ -9,7 +10,8 @@ import { env } from '@shared/config/env';
 async function bootstrap() {
   const mongoDbClient = Registry.getInstance().resolve(MongoDbClient);
   await mongoDbClient.connect();
-  logger.info('MongoDB connected');
+  await ensureIndexes(mongoDbClient.db());
+  logger.info('MongoDB connected and indexes ensured');
 
   const app = createApp();
 
