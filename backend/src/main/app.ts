@@ -3,6 +3,7 @@ import express, { Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 
+import '@main/config/bindings';
 import { logger } from '@main/config/logger';
 import { errorHandler, notFoundHandler } from '@main/middlewares/errorHandler';
 import { routes } from '@main/routes';
