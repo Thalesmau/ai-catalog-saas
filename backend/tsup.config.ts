@@ -3,6 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     server: 'src/main/server.ts',
+    seed: 'scripts/seed.ts',
   },
   outDir: 'dist',
   format: ['cjs'],

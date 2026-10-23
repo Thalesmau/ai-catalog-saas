@@ -8,6 +8,7 @@
     "dev": "tsup --watch --onSuccess \"node --env-file-if-exists=../.env dist/server.js\"",
     "build": "tsup",
     "start": "node --env-file-if-exists=../.env dist/server.js",
+    "seed": "tsup --silent && node --env-file-if-exists=../.env dist/seed.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
