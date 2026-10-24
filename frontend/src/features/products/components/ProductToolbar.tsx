@@ -46,7 +46,7 @@ export function ProductToolbar({ search, category, sortBy, view, categories, onC
           type="search"
           value={searchDraft}
           onChange={event => setSearchDraft(event.target.value)}
-          placeholder="Buscar por nome, descrição ou categoria"
+          placeholder="Buscar produtos..."
           aria-label="Buscar produtos"
           className="pl-9"
           maxLength={100}
