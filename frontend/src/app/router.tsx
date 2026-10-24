@@ -3,7 +3,6 @@ import { createBrowserRouter } from 'react-router';
 import { SignInPage } from '@/features/auth/pages/SignInPage';
 import { SignUpPage } from '@/features/auth/pages/SignUpPage';
 import { GuestRoute, ProtectedRoute } from '@/features/auth/routeGuards';
-import { ChatPage } from '@/features/chat/pages/ChatPage';
 import { ProductsPage } from '@/features/products/pages/ProductsPage';
 
 import { AppLayout } from './layouts/AppLayout';
@@ -24,7 +23,13 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { path: '/', element: <ProductsPage /> },
-          { path: '/chat', element: <ChatPage /> },
+          {
+            path: '/chat',
+            lazy: async () => {
+              const { ChatPage } = await import('@/features/chat/pages/ChatPage');
+              return { Component: ChatPage };
+            },
+          },
         ],
       },
     ],
