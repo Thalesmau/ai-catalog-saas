@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Product } from '@application/entities/Product';
 import { ProductRepository } from '@infra/database/repositories/ProductRepository';
 import { formatBRL, reaisToCents } from '@shared/utils/money';
+import { toSearchTerms } from '@shared/utils/searchTerms';
 
 import { defineTool, IAgentTool } from '../AgentTool';
 
@@ -51,7 +52,7 @@ export function createProductTools({ companyId, productRepository }: ProductTool
         'disponibilidade, preços, comparações ou recomendações. Retorna o total encontrado e os produtos.',
       inputSchema: searchProductsInput,
       run: async (input) => {
-        const { items, total } = await productRepository.list(companyId, {
+        const filters: ProductRepository.ListFilters = {
           search: input.query,
           category: input.category,
           minPriceInCents: input.minPrice !== undefined ? reaisToCents(input.minPrice) : undefined,
@@ -59,9 +60,23 @@ export function createProductTools({ companyId, productRepository }: ProductTool
           sortBy: input.sortBy,
           page: 1,
           pageSize: input.limit ?? 5,
-        });
+        };
 
-        return { total, products: items.map(toToolProduct) };
+        const strict = await productRepository.list(companyId, filters);
+
+        if (strict.total > 0 || toSearchTerms(input.query ?? '').length < 2) {
+          return { total: strict.total, products: strict.items.map(toToolProduct) };
+        }
+
+        const broad = await productRepository.list(companyId, { ...filters, searchMode: 'any' });
+
+        return {
+          total: broad.total,
+          products: broad.items.map(toToolProduct),
+          note: broad.total > 0
+            ? 'Nenhum produto contém todos os termos; estes contêm ao menos um deles. Confira se atendem ao pedido.'
+            : undefined,
+        };
       },
     }),
     defineTool({

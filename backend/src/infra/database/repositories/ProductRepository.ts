@@ -5,6 +5,7 @@ import { MongoDbClient } from '@infra/clients/MongoDbClient';
 import { Injectable } from '@kernel/decorators/Injectable';
 import { escapeRegex } from '@shared/utils/escapeRegex';
 import { toObjectId } from '@shared/utils/objectId';
+import { toAccentInsensitiveRegex, toSearchTerms } from '@shared/utils/searchTerms';
 
 import { COLLECTIONS } from '../collections';
 import { ProductDocument, ProductMapper } from '../mappers/ProductMapper';
@@ -162,9 +163,22 @@ export class ProductRepository {
   private buildFilter(companyId: ObjectId, filters: ProductRepository.ListFilters): Filter<ProductDocument> {
     const filter: Filter<ProductDocument> = { companyId };
 
-    if (filters.search) {
-      const regex = new RegExp(escapeRegex(filters.search), 'i');
-      filter.$or = [{ name: regex }, { description: regex }, { category: regex }];
+    const terms = filters.search ? toSearchTerms(filters.search) : [];
+
+    if (terms.length > 0) {
+      const conditions = terms.map((term) => {
+        const regex = toAccentInsensitiveRegex(term);
+        return { $or: [{ name: regex }, { description: regex }, { category: regex }] };
+      });
+
+      if (filters.searchMode === 'any') {
+        filter.$or = conditions.flatMap(condition => condition.$or);
+      } else {
+        filter.$and = conditions;
+      }
+    } else if (filters.search?.trim()) {
+      const literal = new RegExp(escapeRegex(filters.search.trim()), 'i');
+      filter.$or = [{ name: literal }, { description: literal }, { category: literal }];
     }
 
     if (filters.category) {
@@ -197,6 +211,7 @@ export namespace ProductRepository {
 
   export type ListFilters = {
     search?: string;
+    searchMode?: 'all' | 'any';
     category?: string;
     minPriceInCents?: number;
     maxPriceInCents?: number;

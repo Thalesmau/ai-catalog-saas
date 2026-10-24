@@ -56,6 +56,20 @@ describe('agent product tools', () => {
     expect(result.products[0].price).toMatch(/R\$\s?49,90/);
   });
 
+  it('matches every search term ignoring accents and stopwords', async () => {
+    const result = await run(toolOf(COMPANY_A, 'search_products'), { query: 'fone de AUDIO sem fio' });
+
+    expect(result.products.map((p: { name: string }) => p.name)).toEqual(['Fone Bluetooth']);
+    expect(result.note).toBeUndefined();
+  });
+
+  it('falls back to any term when no product has all of them, and tells the model', async () => {
+    const result = await run(toolOf(COMPANY_A, 'search_products'), { query: 'fone de ouvido' });
+
+    expect(result.total).toBe(2);
+    expect(result.note).toMatch(/ao menos um/);
+  });
+
   it('get_product_details cannot read a product of another company', async () => {
     const result = await run(toolOf(COMPANY_A, 'get_product_details'), { productId: productOfB.id });
 

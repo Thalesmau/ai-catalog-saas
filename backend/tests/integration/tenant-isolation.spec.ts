@@ -97,6 +97,14 @@ describe('tenant isolation', () => {
     await request(app).get(`/products/${productA.id}`).set(...bearer(userB)).expect(404);
   });
 
+  it('matches searches without accents only inside the tenant', async () => {
+    const own = await request(app).get('/products').query({ search: 'cha verde' }).set(...bearer(companyB)).expect(200);
+    const other = await request(app).get('/products').query({ search: 'cha verde' }).set(...bearer(companyA)).expect(200);
+
+    expect(own.body.items.map((p: { name: string }) => p.name)).toEqual(['Chá Verde']);
+    expect(other.body.total).toBe(0);
+  });
+
   it('treats search input as literal text, not regex', async () => {
     const response = await request(app)
       .get('/products')
