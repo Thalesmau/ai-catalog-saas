@@ -10,9 +10,9 @@ const schema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET precisa ter ao menos 32 caracteres.'),
   JWT_EXPIRES_IN: z.string().regex(/^\d+[smhd]$/, 'Use o formato 15m, 12h, 1d...').default('1d'),
   GEMINI_API_KEY: z.string().trim().optional().transform(value => value || undefined),
-  GEMINI_MODEL: z.string().min(1).default('gemini-3.8-flash'),
-  GEMINI_FALLBACK_MODEL: z.string().trim().default('gemini-3.1-flash-lite').transform(value => value || undefined),
-  GEMINI_TIMEOUT_MS: z.coerce.number().int().min(10_000, 'O Gemini exige timeout de no mínimo 10000ms.').default(15_000),
+  GEMINI_MODEL: z.string().min(1).default('gemini-3.1-flash-lite'),
+  GEMINI_FALLBACK_MODEL: z.string().trim().default('gemini-3.8-flash').transform(value => value || undefined),
+  GEMINI_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(10_000),
 });
 
 const parsed = schema.safeParse(process.env);

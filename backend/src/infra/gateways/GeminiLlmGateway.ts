@@ -18,6 +18,7 @@ import { Injectable } from '@kernel/decorators/Injectable';
 import { AppConfig } from '@shared/config/AppConfig';
 
 const MAX_ITERATIONS = 5;
+const REQUEST_TIMEOUT_MS = 120_000;
 
 @Injectable()
 export class GeminiLlmGateway extends LlmGateway {
@@ -36,45 +37,51 @@ export class GeminiLlmGateway extends LlmGateway {
       parts: [{ text: message.content }],
     }));
 
-    const fallbackModels = [this.config.llm.model, this.config.llm.fallbackModel]
-      .filter((model, index, models): model is string => Boolean(model) && models.indexOf(model) === index);
+    const models = [this.config.llm.model, this.config.llm.fallbackModel]
+      .filter((model, index, list): model is string => Boolean(model) && list.indexOf(model) === index);
 
+    let preferred = 0;
     let finalText = '';
 
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
       let turn: GeminiLlmGateway.Turn | undefined;
+      let lastError: unknown;
 
-      while (!turn) {
-        const model = fallbackModels[0]!;
+      for (let attempt = 0; attempt < models.length && !turn; attempt++) {
+        const index = (preferred + attempt) % models.length;
         let emittedText = false;
 
         try {
           turn = await this.streamTurn(client, {
-            model,
+            model: models[index]!,
             contents,
             config: {
               systemInstruction: system,
               tools: [{ functionDeclarations }],
               toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO } },
-              abortSignal: signal,
             },
           }, (delta) => {
             emittedText = true;
             finalText += delta;
             onEvent({ type: 'text', delta });
-          });
+          }, signal);
+
+          preferred = index;
         } catch (error) {
           if (signal?.aborted) {
             throw error;
           }
 
-          if (!emittedText && fallbackModels.length > 1 && isRetryable(error)) {
-            fallbackModels.shift();
-            continue;
+          if (emittedText || !isRetryable(error)) {
+            throw toServiceError(error);
           }
 
-          throw toServiceError(error);
+          lastError = error;
         }
+      }
+
+      if (!turn) {
+        throw toServiceError(lastError);
       }
 
       const { modelParts, functionCalls } = turn;
@@ -101,25 +108,47 @@ export class GeminiLlmGateway extends LlmGateway {
     client: GoogleGenAI,
     params: GenerateContentParameters,
     onText: (delta: string) => void,
+    signal?: AbortSignal,
   ): Promise<GeminiLlmGateway.Turn> {
     const modelParts: Part[] = [];
     const functionCalls: FunctionCall[] = [];
 
-    const stream = await client.models.generateContentStream(params);
+    const attempt = new AbortController();
+    const abortAttempt = () => attempt.abort(signal?.reason);
+    signal?.addEventListener('abort', abortAttempt, { once: true });
 
-    for await (const chunk of stream) {
-      for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
-        modelParts.push(part);
+    const firstChunkTimer = setTimeout(
+      () => attempt.abort(new FirstChunkTimeoutError(this.config.llm.timeoutMs)),
+      this.config.llm.timeoutMs,
+    );
 
-        if (part.functionCall) {
-          functionCalls.push(part.functionCall);
-        } else if (part.text && !part.thought) {
-          onText(part.text);
+    try {
+      const stream = await client.models.generateContentStream({
+        ...params,
+        config: { ...params.config, abortSignal: attempt.signal },
+      });
+
+      for await (const chunk of stream) {
+        clearTimeout(firstChunkTimer);
+
+        for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+          modelParts.push(part);
+
+          if (part.functionCall) {
+            functionCalls.push(part.functionCall);
+          } else if (part.text && !part.thought) {
+            onText(part.text);
+          }
         }
       }
-    }
 
-    return { modelParts, functionCalls };
+      return { modelParts, functionCalls };
+    } catch (error) {
+      throw attempt.signal.reason instanceof FirstChunkTimeoutError ? attempt.signal.reason : error;
+    } finally {
+      clearTimeout(firstChunkTimer);
+      signal?.removeEventListener('abort', abortAttempt);
+    }
   }
 
   private async executeTool(
@@ -164,7 +193,7 @@ export class GeminiLlmGateway extends LlmGateway {
     this.client ??= new GoogleGenAI({
       apiKey: this.config.llm.apiKey,
       httpOptions: {
-        timeout: this.config.llm.timeoutMs,
+        timeout: REQUEST_TIMEOUT_MS,
         retryOptions: { attempts: 1 },
       },
     });
@@ -178,6 +207,13 @@ export namespace GeminiLlmGateway {
     modelParts: Part[];
     functionCalls: FunctionCall[];
   };
+}
+
+class FirstChunkTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Model did not start responding within ${timeoutMs}ms.`);
+    this.name = 'FirstChunkTimeoutError';
+  }
 }
 
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);

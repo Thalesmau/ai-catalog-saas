@@ -144,6 +144,19 @@ describe('GeminiLlmGateway', () => {
     expect(generateContentStream.mock.calls.map(([params]) => params.model)).toEqual([PRIMARY, FALLBACK]);
   });
 
+  it('goes back to the primary model when the fallback fails in a later turn', async () => {
+    generateContentStream
+      .mockRejectedValueOnce(new ApiError({ message: 'busy', status: 503 }))
+      .mockResolvedValueOnce(streamOf({ functionCall: { id: 'call-1', name: 'search_products', args: { query: 'fone' } } }))
+      .mockRejectedValueOnce(new ApiError({ message: 'busy', status: 503 }))
+      .mockResolvedValueOnce(streamOf({ text: 'Temos o fone X.' }));
+
+    const result = await runAgent();
+
+    expect(result.text).toBe('Temos o fone X.');
+    expect(generateContentStream.mock.calls.map(([params]) => params.model)).toEqual([PRIMARY, FALLBACK, FALLBACK, PRIMARY]);
+  });
+
   it('switches to the fallback model on network errors and timeouts', async () => {
     generateContentStream
       .mockRejectedValueOnce(new Error('fetch failed'))
@@ -178,6 +191,35 @@ describe('GeminiLlmGateway', () => {
     expect(generateContentStream).toHaveBeenCalledTimes(5);
     expect(result.text).toContain('Não consegui concluir');
     expect(events.at(-1)).toEqual({ type: 'done' });
+  });
+
+  it('switches to the fallback model when the primary does not start responding in time', async () => {
+    generateContentStream
+      .mockImplementationOnce(async ({ config }) => (async function* () {
+        await new Promise((_resolve, reject) => {
+          config.abortSignal.addEventListener('abort', () => reject(new Error('aborted')));
+        });
+        yield { candidates: [] };
+      })())
+      .mockResolvedValueOnce(streamOf({ text: 'Resposta do fallback.' }));
+
+    const result = await runAgent(makeGateway({ timeoutMs: 20 }));
+
+    expect(result.text).toBe('Resposta do fallback.');
+    expect(generateContentStream.mock.calls.map(([params]) => params.model)).toEqual([PRIMARY, FALLBACK]);
+  });
+
+  it('does not cut a slow stream after the first chunk arrived', async () => {
+    generateContentStream.mockResolvedValueOnce((async function* () {
+      yield { candidates: [{ content: { role: 'model', parts: [{ text: 'Começo ' }] } }] };
+      await new Promise(resolve => setTimeout(resolve, 60));
+      yield { candidates: [{ content: { role: 'model', parts: [{ text: 'e fim.' }] } }] };
+    })());
+
+    const result = await runAgent(makeGateway({ timeoutMs: 20 }));
+
+    expect(result.text).toBe('Começo e fim.');
+    expect(generateContentStream).toHaveBeenCalledTimes(1);
   });
 
   it('fails fast when no API key is configured', async () => {

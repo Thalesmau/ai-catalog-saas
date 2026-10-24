@@ -36,7 +36,13 @@ export default defineConfig([
         },
       ],
     },
-    languageOptions: { globals: globals.node },
+    languageOptions: {
+      globals: globals.node,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
   },
   tseslint.configs.recommended,
   {
