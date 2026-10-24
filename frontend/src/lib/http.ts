@@ -60,7 +60,7 @@ type RequestOptions = {
 };
 
 export async function http<T>(path: string, { method = 'GET', body, query, signal }: RequestOptions = {}): Promise<T> {
-  const url = new URL(`${API_URL}${path}`);
+  const url = new URL(`${API_URL}${path}`, window.location.origin);
 
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value !== undefined && value !== '') {
