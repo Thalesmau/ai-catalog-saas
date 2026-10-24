@@ -32,7 +32,7 @@ export function AuthLayout({ title, description, children }: { title: string; de
             ))}
           </ul>
         </div>
-        <p className="relative text-sm text-zinc-500">Desafio técnico · mini SaaS multi-tenant</p>
+        <p className="relative text-sm text-zinc-500">Catálogo multi-empresa com assistente de IA</p>
       </aside>
 
       <main className="flex flex-col p-4 sm:p-6">
