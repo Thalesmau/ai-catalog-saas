@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { chatStorage } from '@/features/chat/chatStorage';
 import { onUnauthorized } from '@/lib/http';
 import { tokenStorage } from '@/lib/tokenStorage';
 
@@ -15,6 +16,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearSession = useCallback(() => {
     tokenStorage.clear();
+    chatStorage.clearAll();
     queryClient.clear();
     setSession(null);
     setStatus('unauthenticated');
