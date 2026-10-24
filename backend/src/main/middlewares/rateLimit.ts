@@ -4,6 +4,20 @@ import { ErrorCode } from '@application/errors/ErrorCode';
 import { errorResponse } from '@main/utils/errorResponse';
 import { env } from '@shared/config/env';
 
+export const chatRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  keyGenerator: req => req.auth?.accountId ?? 'anonymous',
+  skip: () => env.NODE_ENV === 'test',
+  handler: (_req, res) => errorResponse(res, {
+    statusCode: 429,
+    code: ErrorCode.RATE_LIMITED,
+    message: 'Muitas mensagens em pouco tempo. Aguarde um instante.',
+  }),
+});
+
 export const authRateLimit = rateLimit({
   windowMs: 60_000,
   limit: 10,

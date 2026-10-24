@@ -19,6 +19,10 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
   }
 
   if (error instanceof HttpError) {
+    if (error.statusCode >= 500) {
+      req.log.error({ err: error }, error.message);
+    }
+
     return errorResponse(res, error);
   }
 
