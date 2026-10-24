@@ -1,5 +1,18 @@
 name: ai-catalog-saas
 
+x-api-env: &api-env
+  NODE_ENV: production
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  MONGODB_URI: mongodb://mongo:27017
+  MONGODB_DB: ${MONGODB_DB:-ai_catalog}
+  JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no .env (copie de .env.example)}
+  JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+  CORS_ORIGIN: http://localhost:${WEB_PORT:-8080}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-lite}
+  GEMINI_FALLBACK_MODEL: ${GEMINI_FALLBACK_MODEL:-gemini-3.8-flash}
+  GEMINI_TIMEOUT_MS: ${GEMINI_TIMEOUT_MS:-10000}
+
 services:
   mongo:
     image: mongo:7
@@ -7,8 +20,6 @@ services:
     restart: unless-stopped
     ports:
       - "27017:27017"
-    environment:
-      MONGO_INITDB_DATABASE: ai_catalog
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -16,6 +27,49 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  seed:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: ai-catalog-api
+    command: ["node", "dist/seed.js", "--if-empty"]
+    environment: *api-env
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: ai-catalog-api
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+      PORT: 3333
+    ports:
+      - "${API_PORT:-3333}:3333"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_DEMO_MODE: ${VITE_DEMO_MODE:-true}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   mongo-data:
