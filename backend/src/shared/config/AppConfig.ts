@@ -7,6 +7,7 @@ export class AppConfig {
   readonly http: AppConfig.Http;
   readonly db: AppConfig.Database;
   readonly auth: AppConfig.Auth;
+  readonly llm: AppConfig.Llm;
 
   constructor() {
     this.app = {
@@ -27,6 +28,13 @@ export class AppConfig {
     this.auth = {
       jwtSecret: env.JWT_SECRET,
       jwtExpiresIn: env.JWT_EXPIRES_IN as AppConfig.Auth['jwtExpiresIn'],
+    };
+
+    this.llm = {
+      apiKey: env.GEMINI_API_KEY,
+      model: env.GEMINI_MODEL,
+      fallbackModel: env.GEMINI_FALLBACK_MODEL,
+      timeoutMs: env.GEMINI_TIMEOUT_MS,
     };
   }
 }
@@ -50,5 +58,12 @@ export namespace AppConfig {
   export type Auth = {
     jwtSecret: string;
     jwtExpiresIn: `${number}${'s' | 'm' | 'h' | 'd'}`;
+  };
+
+  export type Llm = {
+    apiKey: string | undefined;
+    model: string;
+    fallbackModel: string | undefined;
+    timeoutMs: number;
   };
 }
