@@ -39,7 +39,9 @@ export default defineConfig([
     languageOptions: {
       globals: globals.node,
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ['eslint.config.mjs', 'vitest.config.mts'],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
