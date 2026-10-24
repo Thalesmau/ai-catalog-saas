@@ -16,8 +16,10 @@ import { env } from '@shared/config/env';
 import { SEED_COMPANIES, SEED_PASSWORD } from './seed-data';
 
 async function seed() {
-  if (env.NODE_ENV === 'production' && !process.argv.includes('--force')) {
-    throw new Error('Seed apaga todos os dados. Em produção, rode com --force se tiver certeza.');
+  const onlyIfEmpty = process.argv.includes('--if-empty');
+
+  if (env.NODE_ENV === 'production' && !onlyIfEmpty && !process.argv.includes('--force')) {
+    throw new Error('Seed apaga todos os dados. Em produção, rode com --if-empty ou --force.');
   }
 
   const registry = Registry.getInstance();
@@ -29,6 +31,12 @@ async function seed() {
 
   await mongoDbClient.connect();
   const db = mongoDbClient.db();
+
+  if (onlyIfEmpty && await db.collection(COLLECTIONS.companies).estimatedDocumentCount() > 0) {
+    console.log(`Banco "${db.databaseName}" já possui dados, seed ignorado.`);
+    await mongoDbClient.disconnect();
+    return;
+  }
 
   console.log(`🌱 Seeding database "${db.databaseName}"...`);
 
