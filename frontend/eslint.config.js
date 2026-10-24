@@ -31,6 +31,7 @@ export default defineConfig([
       eqeqeq: ['error', 'always'],
       curly: ['error', 'all'],
       'no-console': 'warn',
+      'no-empty': ['error', { allowEmptyCatch: true }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
